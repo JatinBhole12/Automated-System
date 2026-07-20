@@ -1,0 +1,81 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Employee {
+  id            Int          @id @default(autoincrement())
+  name          String
+  department    String
+  skills        String
+  availability  Boolean
+  activeTickets Int
+  maxCapacity   Int
+  assignedTickets Ticket[]
+  assignments   Assignment[]
+}
+
+model User {
+  id            Int      @id @default(autoincrement())
+  name          String
+  email         String   @unique
+  passwordHash  String
+  verified      Boolean  @default(true)
+  role          String   @default("USER")
+  approvalStatus String  @default("PENDING")
+  approvalToken String?  @unique
+  approvedAt    DateTime?
+  createdAt     DateTime @default(now())
+}
+
+model Ticket {
+  id                          Int          @id @default(autoincrement())
+  title                       String
+  department                  String
+  materialType                String
+  requiredSkill               String
+  priority                    String
+  topic                       String?
+  subject                     String       @default("Delivery Date")
+  customerMessage             String?
+  hubOrderNo                  String?
+  materialNo                  String?
+  supplierEntity              String?
+  shippingType                String?
+  shippingDate                String?
+  autoObdRelease              Boolean?
+  hasUserStatusBlock          Boolean      @default(false)
+  itemStatus                  Int?
+  deliveryDate                String?
+  purchaseGroup               String?
+  isKit                       Boolean      @default(false)
+  orderStatus                 Int?
+  customerCenterInsisting     Boolean      @default(false)
+  plannerName                 String?
+  plannerApprovedCancellation Boolean?
+  recommendedAction           String?
+  routedTeam                  String?
+  status                      String       @default("Incoming")
+  assignedToId                Int?
+  assignedTo                  Employee?    @relation(fields: [assignedToId], references: [id])
+  reason                      String?
+  score                       Int?
+  createdAt                   DateTime     @default(now())
+  assignments                 Assignment[]
+}
+
+model Assignment {
+  id         Int       @id @default(autoincrement())
+  ticketId   Int
+  employeeId Int?
+  score      Int
+  reason     String
+  steps      String
+  createdAt  DateTime  @default(now())
+  ticket     Ticket    @relation(fields: [ticketId], references: [id])
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+}

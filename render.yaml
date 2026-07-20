@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: autoassign-api
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run prisma:generate --workspace server && npm run build --workspace server
+    startCommand: npm run db:deploy --workspace server && npm run start --workspace server
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: DATABASE_URL
+        value: file:/var/data/dev.db
+      - key: SUPER_ADMIN_EMAIL
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: APP_BASE_URL
+        sync: false
+    disk:
+      name: autoassign-data
+      mountPath: /var/data
+      sizeGB: 1

@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f6f8fb;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 1040px;
+}
+
+th {
+  background: #f9fafb;
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.875rem 0.75rem;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+td {
+  border-top: 1px solid #dce4ee;
+  color: #334155;
+  font-size: 0.875rem;
+  padding: 1rem 0.75rem;
+  vertical-align: middle;
+}
+
+tbody tr {
+  transition: background-color 160ms ease;
+}
+
+tbody tr:hover {
+  background: #f9fafb;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input[type="checkbox"] {
+  accent-color: #16202a;
+}
+
+.field-input {
+  height: 2.5rem;
+  width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #dce4ee;
+  background: #ffffff;
+  color: #16202a;
+  font-size: 0.875rem;
+  font-weight: 600;
+  outline: none;
+  padding: 0 0.75rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+textarea.field-input,
+.field-textarea {
+  min-height: 6.5rem;
+  height: auto;
+  line-height: 1.5;
+  overflow: hidden;
+  padding-bottom: 0.75rem;
+  padding-top: 0.75rem;
+  resize: none;
+}
+
+select.field-input {
+  cursor: pointer;
+}
+
+.field-input:focus {
+  border-color: #22d3ee;
+  box-shadow: 0 0 0 4px rgba(34, 211, 238, 0.18);
+}
+
+.auth-input {
+  height: 3rem;
+  font-size: 0.95rem;
+}
+
+.metric-icon {
+  display: grid;
+  height: 2.5rem;
+  width: 2.5rem;
+  place-items: center;
+  border-radius: 0.625rem;
+}
+
+.metric-cyan {
+  background: #ecfeff;
+  color: #0e7490;
+}
+
+.metric-rose {
+  background: #fff1f2;
+  color: #be123c;
+}
+
+.metric-emerald {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.metric-amber {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.timeline-dot {
+  display: grid;
+  height: 2.75rem;
+  width: 2.75rem;
+  place-items: center;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.timeline-passed {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.timeline-warning {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.timeline-failed {
+  background: #fff1f2;
+  color: #be123c;
+}
