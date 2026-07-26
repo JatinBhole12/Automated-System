@@ -14,6 +14,7 @@ const port = Number(process.env.PORT ?? 4000);
 const otpTtlMs = 5 * 60 * 1000;
 const registrationTokenTtlMs = 10 * 60 * 1000;
 const smtpPort = Number(process.env.SMTP_PORT ?? 587);
+const brevoApiUrl = "https://api.brevo.com/v3/smtp/email";
 
 const pendingOtps = new Map<string, { name: string; otp: string; expiresAt: number }>();
 const verifiedRegistrationTokens = new Map<string, { name: string; email: string; expiresAt: number }>();
@@ -106,6 +107,59 @@ function isSuperAdminEmail(email: string) {
   return email.toLowerCase() === getSuperAdminEmail();
 }
 
+function parseSender() {
+  const mailFrom = process.env.MAIL_FROM ?? process.env.SMTP_USER ?? "";
+  const match = mailFrom.match(/^(.*?)\s*<([^>]+)>$/);
+
+  if (match) {
+    return {
+      name: match[1]?.trim() || "AutoAssign",
+      email: match[2]?.trim()
+    };
+  }
+
+  return {
+    name: process.env.MAIL_FROM_NAME ?? "AutoAssign",
+    email: process.env.BREVO_SENDER_EMAIL ?? mailFrom.trim()
+  };
+}
+
+async function sendViaBrevo(options: { to: string; toName: string; subject: string; text: string; html: string }) {
+  const apiKey = process.env.BREVO_API_KEY;
+
+  if (!apiKey) {
+    return false;
+  }
+
+  const sender = parseSender();
+  if (!sender.email) {
+    throw new Error("MAIL_FROM or BREVO_SENDER_EMAIL is required when BREVO_API_KEY is configured.");
+  }
+
+  const response = await fetch(brevoApiUrl, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "api-key": apiKey,
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({
+      sender,
+      to: [{ email: options.to, name: options.toName }],
+      subject: options.subject,
+      textContent: options.text,
+      htmlContent: options.html
+    })
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(`Brevo email failed: ${response.status} ${message}`);
+  }
+
+  return true;
+}
+
 function createMailTransport() {
   const host = process.env.SMTP_HOST;
   const user = process.env.SMTP_USER;
@@ -124,6 +178,21 @@ function createMailTransport() {
 }
 
 async function sendRegistrationOtpEmail(email: string, name: string, otp: string) {
+  const text = `Hello ${name},\n\nYour AutoAssign registration OTP is ${otp}.\n\nThis code expires in 5 minutes.\n\nIf you did not request this, you can ignore this email.`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#16202a">
+      <h2 style="margin:0 0 12px">AutoAssign email verification</h2>
+      <p>Hello ${name},</p>
+      <p>Use this OTP to complete your registration:</p>
+      <div style="font-size:28px;font-weight:800;letter-spacing:8px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:16px;text-align:center">${otp}</div>
+      <p style="color:#64748b">This code expires in 5 minutes.</p>
+    </div>
+  `;
+
+  if (await sendViaBrevo({ to: email, toName: name, subject: "Your AutoAssign registration OTP", text, html })) {
+    return;
+  }
+
   const transport = createMailTransport();
   const from = process.env.MAIL_FROM ?? process.env.SMTP_USER;
 
@@ -131,16 +200,8 @@ async function sendRegistrationOtpEmail(email: string, name: string, otp: string
     from,
     to: email,
     subject: "Your AutoAssign registration OTP",
-    text: `Hello ${name},\n\nYour AutoAssign registration OTP is ${otp}.\n\nThis code expires in 5 minutes.\n\nIf you did not request this, you can ignore this email.`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#16202a">
-        <h2 style="margin:0 0 12px">AutoAssign email verification</h2>
-        <p>Hello ${name},</p>
-        <p>Use this OTP to complete your registration:</p>
-        <div style="font-size:28px;font-weight:800;letter-spacing:8px;background:#ecfeff;border:1px solid #a5f3fc;border-radius:8px;padding:16px;text-align:center">${otp}</div>
-        <p style="color:#64748b">This code expires in 5 minutes.</p>
-      </div>
-    `
+    text,
+    html
   });
 }
 
@@ -151,31 +212,38 @@ async function sendApprovalRequestEmail(user: { name: string; email: string; app
     throw new Error("SUPER_ADMIN_EMAIL is not configured in server/.env.");
   }
 
-  const transport = createMailTransport();
   const from = process.env.MAIL_FROM ?? process.env.SMTP_USER;
   const appBaseUrl = process.env.APP_BASE_URL ?? `http://localhost:${port}`;
   const approveUrl = `${appBaseUrl}/auth/admin/approve?token=${user.approvalToken}`;
   const rejectUrl = `${appBaseUrl}/auth/admin/reject?token=${user.approvalToken}`;
+  const text = `A new user is waiting for approval.\n\nName: ${user.name}\nEmail: ${user.email}\n\nApprove: ${approveUrl}\nReject: ${rejectUrl}`;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:24px;color:#16202a">
+      <h2 style="margin:0 0 12px">AutoAssign approval request</h2>
+      <p>A new user completed OTP verification and password creation.</p>
+      <div style="background:#f8fafc;border:1px solid #dce4ee;border-radius:8px;padding:16px;margin:16px 0">
+        <p><strong>Name:</strong> ${user.name}</p>
+        <p><strong>Email:</strong> ${user.email}</p>
+      </div>
+      <p>
+        <a href="${approveUrl}" style="display:inline-block;background:#16202a;color:#fff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;margin-right:8px">Approve</a>
+        <a href="${rejectUrl}" style="display:inline-block;background:#fff1f2;color:#be123c;text-decoration:none;border:1px solid #fecdd3;border-radius:8px;padding:12px 18px;font-weight:700">Reject</a>
+      </p>
+    </div>
+  `;
+
+  if (await sendViaBrevo({ to: superAdminEmail, toName: "AutoAssign Admin", subject: "AutoAssign user approval request", text, html })) {
+    return;
+  }
+
+  const transport = createMailTransport();
 
   await transport.sendMail({
     from,
     to: superAdminEmail,
     subject: "AutoAssign user approval request",
-    text: `A new user is waiting for approval.\n\nName: ${user.name}\nEmail: ${user.email}\n\nApprove: ${approveUrl}\nReject: ${rejectUrl}`,
-    html: `
-      <div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;padding:24px;color:#16202a">
-        <h2 style="margin:0 0 12px">AutoAssign approval request</h2>
-        <p>A new user completed OTP verification and password creation.</p>
-        <div style="background:#f8fafc;border:1px solid #dce4ee;border-radius:8px;padding:16px;margin:16px 0">
-          <p><strong>Name:</strong> ${user.name}</p>
-          <p><strong>Email:</strong> ${user.email}</p>
-        </div>
-        <p>
-          <a href="${approveUrl}" style="display:inline-block;background:#16202a;color:#fff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700;margin-right:8px">Approve</a>
-          <a href="${rejectUrl}" style="display:inline-block;background:#fff1f2;color:#be123c;text-decoration:none;border:1px solid #fecdd3;border-radius:8px;padding:12px 18px;font-weight:700">Reject</a>
-        </p>
-      </div>
-    `
+    text,
+    html
   });
 }
 
