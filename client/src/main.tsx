@@ -726,6 +726,7 @@ function RegistrationGate({ onComplete }: { onComplete: (user: RegisteredUser) =
   const [notice, setNotice] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
+  const [resendingApproval, setResendingApproval] = React.useState(false);
 
   async function submitEmail(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -835,6 +836,30 @@ function RegistrationGate({ onComplete }: { onComplete: (user: RegisteredUser) =
       }
     } catch (caught) {
       console.error(caught);
+    }
+  }
+
+  async function resendApprovalEmail() {
+    if (!email) return;
+
+    setResendingApproval(true);
+    setError(null);
+    setNotice(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/auth/approval/resend`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.message ?? "Could not resend approval email.");
+
+      setNotice(payload.message ?? "A fresh approval email was sent to the super admin.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not resend approval email.");
+    } finally {
+      setResendingApproval(false);
     }
   }
 
@@ -964,14 +989,25 @@ function RegistrationGate({ onComplete }: { onComplete: (user: RegisteredUser) =
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Your email OTP and password setup are complete. The super admin has received an approval email. You can access the workspace after approval.
               </p>
-              <button
-                type="button"
-                onClick={checkApprovalStatus}
-                className="mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-bold text-white transition hover:bg-slate-700"
-              >
-                <RotateCw size={16} />
-                Check approval now
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={checkApprovalStatus}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-bold text-white transition hover:bg-slate-700"
+                >
+                  <RotateCw size={16} />
+                  Check approval now
+                </button>
+                <button
+                  type="button"
+                  onClick={resendApprovalEmail}
+                  disabled={resendingApproval}
+                  className="inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white px-4 text-sm font-bold text-ink transition hover:bg-amber-100 disabled:opacity-60"
+                >
+                  {resendingApproval ? <Loader2 className="animate-spin" size={16} /> : <Send size={16} />}
+                  Resend approval email
+                </button>
+              </div>
             </div>
           )}
         </div>

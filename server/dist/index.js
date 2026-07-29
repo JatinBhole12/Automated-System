@@ -66,6 +66,9 @@ const completeRegistrationSchema = startRegistrationSchema.extend({
     password: z.string().min(8),
     registrationToken: z.string().min(20)
 });
+const resendApprovalSchema = z.object({
+    email: z.string().trim().email().transform((email) => email.toLowerCase())
+});
 app.use(cors());
 app.use(express.json());
 function createOtp() {
@@ -491,6 +494,38 @@ app.get("/auth/approval-status", async (req, res, next) => {
             approvalStatus: user.approvalStatus,
             user: user.approvalStatus === "APPROVED" ? sanitizeUser(user) : null
         });
+    }
+    catch (error) {
+        next(error);
+    }
+});
+app.post("/auth/approval/resend", async (req, res, next) => {
+    try {
+        const data = resendApprovalSchema.parse(req.body);
+        const user = await prisma.user.findUnique({ where: { email: data.email } });
+        if (!user) {
+            res.status(404).json({ message: "User not found." });
+            return;
+        }
+        if (user.approvalStatus === "APPROVED") {
+            res.json({ message: "This user is already approved.", approvalStatus: user.approvalStatus });
+            return;
+        }
+        if (user.approvalStatus === "REJECTED") {
+            res.status(409).json({ message: "This registration was rejected. Please register again with admin guidance." });
+            return;
+        }
+        const approvalToken = crypto.randomBytes(32).toString("hex");
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: { approvalToken }
+        });
+        await sendApprovalRequestEmail({
+            name: updatedUser.name,
+            email: updatedUser.email,
+            approvalToken
+        });
+        res.json({ message: "A fresh approval email was sent to the super admin." });
     }
     catch (error) {
         next(error);
