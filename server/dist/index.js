@@ -94,6 +94,13 @@ function isSuperAdminEmail(email) {
 function parseSender() {
     const mailFrom = process.env.MAIL_FROM ?? process.env.SMTP_USER ?? "";
     const match = mailFrom.match(/^(.*?)\s*<([^>]+)>$/);
+    const brevoSenderEmail = process.env.BREVO_SENDER_EMAIL?.trim();
+    if (brevoSenderEmail) {
+        return {
+            name: match?.[1]?.trim() || process.env.MAIL_FROM_NAME || "AutoAssign",
+            email: brevoSenderEmail
+        };
+    }
     if (match) {
         return {
             name: match[1]?.trim() || "AutoAssign",
@@ -102,7 +109,7 @@ function parseSender() {
     }
     return {
         name: process.env.MAIL_FROM_NAME ?? "AutoAssign",
-        email: process.env.BREVO_SENDER_EMAIL ?? mailFrom.trim()
+        email: mailFrom.trim()
     };
 }
 async function sendViaBrevo(options) {
@@ -148,6 +155,12 @@ function createMailTransport() {
         secure: smtpPort === 465,
         auth: { user, pass }
     });
+}
+function getEmailSetupMessage() {
+    if (process.env.NODE_ENV === "production") {
+        return "OTP email could not be sent. Set BREVO_API_KEY, BREVO_SENDER_EMAIL, MAIL_FROM, and SUPER_ADMIN_EMAIL in the backend hosting environment, then redeploy.";
+    }
+    return "OTP email could not be sent. Configure SMTP settings in server/.env, or set BREVO_API_KEY and BREVO_SENDER_EMAIL.";
 }
 async function sendRegistrationOtpEmail(email, name, otp) {
     const text = `Hello ${name},\n\nYour AutoAssign registration OTP is ${otp}.\n\nThis code expires in 5 minutes.\n\nIf you did not request this, you can ignore this email.`;
@@ -320,7 +333,7 @@ app.post("/auth/register/start", async (req, res, next) => {
             pendingOtps.delete(data.email);
             console.error(mailError);
             res.status(503).json({
-                message: "OTP email could not be sent. Please check SMTP settings in server/.env."
+                message: getEmailSetupMessage()
             });
             return;
         }
