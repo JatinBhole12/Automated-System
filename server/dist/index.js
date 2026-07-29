@@ -113,8 +113,12 @@ function parseSender() {
     };
 }
 async function sendViaBrevo(options) {
-    const apiKey = process.env.BREVO_API_KEY;
+    const apiKey = process.env.BREVO_API_KEY?.trim();
     if (!apiKey) {
+        return false;
+    }
+    if (!apiKey.startsWith("xkeysib-")) {
+        console.error("BREVO_API_KEY does not look like a Brevo API key. It should start with xkeysib-. Falling back to SMTP if configured.");
         return false;
     }
     const sender = parseSender();
@@ -138,7 +142,8 @@ async function sendViaBrevo(options) {
     });
     if (!response.ok) {
         const message = await response.text();
-        throw new Error(`Brevo email failed: ${response.status} ${message}`);
+        console.error(`Brevo email failed: ${response.status} ${message}. Falling back to SMTP if configured.`);
+        return false;
     }
     return true;
 }
@@ -158,9 +163,9 @@ function createMailTransport() {
 }
 function getEmailSetupMessage() {
     if (process.env.NODE_ENV === "production") {
-        return "OTP email could not be sent. Set BREVO_API_KEY, BREVO_SENDER_EMAIL, MAIL_FROM, and SUPER_ADMIN_EMAIL in the backend hosting environment, then redeploy.";
+        return "OTP email could not be sent. Set a Brevo API key that starts with xkeysib-, or configure SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, MAIL_FROM, and SUPER_ADMIN_EMAIL in Render, then redeploy.";
     }
-    return "OTP email could not be sent. Configure SMTP settings in server/.env, or set BREVO_API_KEY and BREVO_SENDER_EMAIL.";
+    return "OTP email could not be sent. Configure SMTP settings in server/.env, or set a Brevo API key that starts with xkeysib-.";
 }
 async function sendRegistrationOtpEmail(email, name, otp) {
     const text = `Hello ${name},\n\nYour AutoAssign registration OTP is ${otp}.\n\nThis code expires in 5 minutes.\n\nIf you did not request this, you can ignore this email.`;
