@@ -531,6 +531,39 @@ app.post("/auth/approval/resend", async (req, res, next) => {
         next(error);
     }
 });
+app.get("/auth/approval/resend", async (req, res, next) => {
+    try {
+        const email = String(req.query.email ?? "").trim().toLowerCase();
+        const data = resendApprovalSchema.parse({ email });
+        const user = await prisma.user.findUnique({ where: { email: data.email } });
+        if (!user) {
+            res.status(404).send("<h1>User not found.</h1>");
+            return;
+        }
+        if (user.approvalStatus === "APPROVED") {
+            res.send("<h1>User already approved.</h1><p>You can return to AutoAssign and check approval again.</p>");
+            return;
+        }
+        if (user.approvalStatus === "REJECTED") {
+            res.status(409).send("<h1>Registration rejected.</h1><p>Please register again with admin guidance.</p>");
+            return;
+        }
+        const approvalToken = crypto.randomBytes(32).toString("hex");
+        const updatedUser = await prisma.user.update({
+            where: { id: user.id },
+            data: { approvalToken }
+        });
+        await sendApprovalRequestEmail({
+            name: updatedUser.name,
+            email: updatedUser.email,
+            approvalToken
+        });
+        res.send("<h1>Approval email sent</h1><p>A fresh approval link was sent to the super admin.</p>");
+    }
+    catch (error) {
+        next(error);
+    }
+});
 app.get("/tickets", async (_req, res, next) => {
     try {
         const tickets = await prisma.ticket.findMany({
