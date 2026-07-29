@@ -820,7 +820,16 @@ function RegistrationGate({ onComplete }: { onComplete: (user: RegisteredUser) =
     try {
       const response = await fetch(`${API_BASE}/auth/approval-status?email=${encodeURIComponent(email)}`);
       const payload = await response.json();
-      if (!response.ok) throw new Error(payload.message ?? "Could not check approval status.");
+      if (!response.ok) {
+        if (response.status === 404) {
+          window.localStorage.removeItem(PENDING_REGISTRATION_KEY);
+          setError("This pending registration was not found. Please register again.");
+          setStep("email");
+          return;
+        }
+
+        throw new Error(payload.message ?? "Could not check approval status.");
+      }
 
       if (payload.approvalStatus === "APPROVED" && payload.user) {
         window.localStorage.removeItem(PENDING_REGISTRATION_KEY);
