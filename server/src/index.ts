@@ -107,6 +107,10 @@ function isSuperAdminEmail(email: string) {
   return email.toLowerCase() === getSuperAdminEmail();
 }
 
+function getAppBaseUrl() {
+  return (process.env.APP_BASE_URL ?? `http://localhost:${port}`).replace(/\/+$/, "");
+}
+
 function parseSender() {
   const mailFrom = process.env.MAIL_FROM ?? process.env.SMTP_USER ?? "";
   const match = mailFrom.match(/^(.*?)\s*<([^>]+)>$/);
@@ -235,7 +239,7 @@ async function sendApprovalRequestEmail(user: { name: string; email: string; app
   }
 
   const from = process.env.MAIL_FROM ?? process.env.SMTP_USER;
-  const appBaseUrl = process.env.APP_BASE_URL ?? `http://localhost:${port}`;
+  const appBaseUrl = getAppBaseUrl();
   const approveUrl = `${appBaseUrl}/auth/admin/approve?token=${user.approvalToken}`;
   const rejectUrl = `${appBaseUrl}/auth/admin/reject?token=${user.approvalToken}`;
   const text = `A new user is waiting for approval.\n\nName: ${user.name}\nEmail: ${user.email}\n\nApprove: ${approveUrl}\nReject: ${rejectUrl}`;
@@ -498,7 +502,7 @@ app.post("/auth/register/complete", async (req, res, next) => {
   }
 });
 
-app.get("/auth/admin/approve", async (req, res, next) => {
+app.get(/^\/+auth\/admin\/approve$/, async (req, res, next) => {
   try {
     const token = String(req.query.token ?? "");
     const user = await prisma.user.findUnique({ where: { approvalToken: token } });
@@ -523,7 +527,7 @@ app.get("/auth/admin/approve", async (req, res, next) => {
   }
 });
 
-app.get("/auth/admin/reject", async (req, res, next) => {
+app.get(/^\/+auth\/admin\/reject$/, async (req, res, next) => {
   try {
     const token = String(req.query.token ?? "");
     const user = await prisma.user.findUnique({ where: { approvalToken: token } });
