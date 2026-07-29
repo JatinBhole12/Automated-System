@@ -7,6 +7,8 @@ import {
   CheckCircle2,
   ClipboardList,
   Cpu,
+  Eye,
+  EyeOff,
   Gauge,
   Layers3,
   ListChecks,
@@ -718,6 +720,8 @@ function RegistrationGate({ onComplete }: { onComplete: (user: RegisteredUser) =
   const [otp, setOtp] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const [registrationToken, setRegistrationToken] = React.useState("");
   const [notice, setNotice] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
@@ -917,10 +921,32 @@ function RegistrationGate({ onComplete }: { onComplete: (user: RegisteredUser) =
           {step === "password" && (
             <form onSubmit={submitPassword} className="mt-6 grid gap-4">
               <Field label="Password">
-                <input value={password} onChange={(event) => setPassword(event.target.value)} required type="password" minLength={8} placeholder="Minimum 8 characters" className="field-input auth-input" />
+                <div className="relative">
+                  <input value={password} onChange={(event) => setPassword(event.target.value)} required type={showPassword ? "text" : "password"} minLength={8} placeholder="Minimum 8 characters" className="field-input auth-input pr-12" />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    title={showPassword ? "Hide password" : "Show password"}
+                    className="absolute inset-y-0 right-3 inline-flex items-center justify-center text-slate-500 transition hover:text-ink"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </Field>
               <Field label="Confirm password">
-                <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required type="password" minLength={8} placeholder="Re-enter password" className="field-input auth-input" />
+                <div className="relative">
+                  <input value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required type={showConfirmPassword ? "text" : "password"} minLength={8} placeholder="Re-enter password" className="field-input auth-input pr-12" />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword((current) => !current)}
+                    aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    title={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                    className="absolute inset-y-0 right-3 inline-flex items-center justify-center text-slate-500 transition hover:text-ink"
+                  >
+                    {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </Field>
               <button type="submit" disabled={submitting} className="mt-2 inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-ink px-4 text-sm font-bold text-white transition hover:bg-slate-700 disabled:opacity-60">
                 {submitting ? <Loader2 className="animate-spin" size={17} /> : <LockKeyhole size={17} />}
